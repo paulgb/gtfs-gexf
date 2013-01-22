@@ -78,7 +78,8 @@ def main():
             stops.add(prev_stop)
             for stop_time in stop_time_iter:
                 stop = stop_time['stop_id']
-                edges.add((prev_stop, stop))
+                edge = (prev_stop, stop)
+                edges.add(edge)
                 stops.add(stop)
                 prev_stop = stop
     print 'stops', len(stops)
@@ -92,10 +93,14 @@ def main():
             gexf.add_node(name, stop['stop_lon'], stop['stop_lat'])
     print 'stop_map', len(stop_map)
 
+    edges_used = set()
     for (start_stop_id, end_stop_id) in edges:
         start_stop_name = stop_map[start_stop_id]
         end_stop_name = stop_map[end_stop_id]
-        gexf.add_edge(start_stop_name, end_stop_name)
+        edge = min((start_stop_name, end_stop_name), (end_stop_name, start_stop_name))
+        if edge not in edges_used:
+            gexf.add_edge(start_stop_name, end_stop_name)
+            edges_used.add(edge)
 
     gexf.write(file('out.gexf', 'w'))
 
