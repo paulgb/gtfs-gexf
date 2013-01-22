@@ -12,6 +12,17 @@ CABLE_CAR_TYPE = '5'
 GONDOLA_TYPE = '6'
 FUNICULAR_TYPE = '7'
 
+STATION_MAP = {
+    'BLOOR STATION': 'BLOOR/YONGE STATION',
+    'YONGE STATION': 'BLOOR/YONGE STATION'
+}
+
+DISCARD_STATIONS = set([
+    'ST. CLAIR W POCKET',
+    'DAVIS BUILD-UP'
+])
+
+
 class GEXF(object):
     def __init__(self):
         self.doc = Document()
@@ -86,17 +97,25 @@ def main():
     print 'edges', len(edges)
 
     stop_map = dict()
+    stops_used = set(DISCARD_STATIONS)
     for stop in stops_csv:
         if stop['stop_id'] in stops:
             name = stop['stop_name'].split(' - ')[0]
             stop_map[stop['stop_id']] = name
-            gexf.add_node(name, stop['stop_lon'], stop['stop_lat'])
+            name = STATION_MAP.get(name, name)
+            if name not in stops_used:
+                gexf.add_node(name, stop['stop_lon'], stop['stop_lat'])
+                stops_used.add(name)
     print 'stop_map', len(stop_map)
 
     edges_used = set()
     for (start_stop_id, end_stop_id) in edges:
         start_stop_name = stop_map[start_stop_id]
         end_stop_name = stop_map[end_stop_id]
+        if start_stop_name in DISCARD_STATIONS or end_stop_name in DISCARD_STATIONS:
+            continue
+        start_stop_name = STATION_MAP.get(start_stop_name, start_stop_name)
+        end_stop_name = STATION_MAP.get(end_stop_name, end_stop_name)
         edge = min((start_stop_name, end_stop_name), (end_stop_name, start_stop_name))
         if edge not in edges_used:
             gexf.add_edge(start_stop_name, end_stop_name)
