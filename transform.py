@@ -48,7 +48,7 @@ class GEXF(object):
         self.edges.appendChild(edge)
 
     def write(self, fh):
-        self.doc.writexml(fh)
+        self.doc.writexml(fh, indent='\n', addindent='  ')
 
 def main():
     trips_csv = DictReader(file('data/trips.txt'))
@@ -97,7 +97,7 @@ def main():
         end_stop_name = stop_map[end_stop_id]
         gexf.add_edge(start_stop_name, end_stop_name)
 
-    gexf.write(file('out.gexf', 'w'), addindent='  ')
+    gexf.write(file('out.gexf', 'w'))
 
 if __name__ == '__main__':
     main()
