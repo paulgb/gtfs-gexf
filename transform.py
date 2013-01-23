@@ -1,8 +1,17 @@
 
-from csv import DictReader
-from itertools import groupby
-from xml.dom.minidom import Document
+'''
+Transform a GTFS (General Transit Feed Specification) file into an undirected
+GEXF (Graph Exchange XML Format) graph.
 
+The GTFS file must be unzipped into a directory called 'data' in the working
+directory which this script is called from. Output is saved as out.gexf in
+the current working directory.
+
+Currently this script does not take command-line options, but you can modify
+the constants defined at the top to configure the script to your liking.
+'''
+
+# GTFS defines these route types
 LRT_TYPE = '0'
 SUBWAY_TYPE = '1'
 RAIL_TYPE = '2'
@@ -12,16 +21,34 @@ CABLE_CAR_TYPE = '5'
 GONDOLA_TYPE = '6'
 FUNICULAR_TYPE = '7'
 
+# You can filter the type of stop converted by placing the route types
+# you're interested in in this list.
+CONVERT_ROUTE_TYPES = [SUBWAY_TYPE]
+
+# This defines an optional mapping on station names. Because stations
+# are uniquely identified by their station name, this can be used to
+# merge two nodes (stations) into one.
 STATION_MAP = {
     'BLOOR STATION': 'BLOOR/YONGE STATION',
     'YONGE STATION': 'BLOOR/YONGE STATION'
 }
 
+# Sometimes there are stations you may want to discard altogether
+# (including their edges). They can be added to this set.
 DISCARD_STATIONS = set([
     'ST. CLAIR W POCKET',
     'DAVIS BUILD-UP'
 ])
 
+# A function for normalizing a stop name. Can be used to eg. remove
+# a platform name or direction.
+def get_stop_name(stop_name):
+    name = stop_name.split(' - ')[0]
+    return STATION_MAP.get(name, name)
+
+from csv import DictReader
+from itertools import groupby
+from xml.dom.minidom import Document
 
 class GEXF(object):
     def __init__(self):
@@ -32,6 +59,7 @@ class GEXF(object):
         gexf.setAttribute('xmlns:viz', 'http://www.gexf.net/1.2draft/viz')
 
         graph = self.doc.createElement('graph')
+        graph.setAttribute('defaultedgetype', 'undirected')
 
         self.nodes = graph.appendChild(self.doc.createElement('nodes'))
         self.edges = graph.appendChild(self.doc.createElement('edges'))
@@ -71,7 +99,7 @@ def main():
 
     routes = dict()
     for route in routes_csv:
-        if route['route_type'] == SUBWAY_TYPE:
+        if route['route_type'] in CONVERT_ROUTE_TYPES:
             routes[route['route_id']] = route
     print 'routes', len(routes)
 
@@ -100,9 +128,8 @@ def main():
     stops_used = set(DISCARD_STATIONS)
     for stop in stops_csv:
         if stop['stop_id'] in stops:
-            name = stop['stop_name'].split(' - ')[0]
+            name = get_stop_name(stop['stop_name'])
             stop_map[stop['stop_id']] = name
-            name = STATION_MAP.get(name, name)
             if name not in stops_used:
                 gexf.add_node(name, stop['stop_lon'], stop['stop_lat'])
                 stops_used.add(name)
@@ -114,8 +141,6 @@ def main():
         end_stop_name = stop_map[end_stop_id]
         if start_stop_name in DISCARD_STATIONS or end_stop_name in DISCARD_STATIONS:
             continue
-        start_stop_name = STATION_MAP.get(start_stop_name, start_stop_name)
-        end_stop_name = STATION_MAP.get(end_stop_name, end_stop_name)
         edge = min((start_stop_name, end_stop_name), (end_stop_name, start_stop_name))
         if edge not in edges_used:
             gexf.add_edge(start_stop_name, end_stop_name)
